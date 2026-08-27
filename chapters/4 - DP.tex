@@ -1,0 +1,197 @@
+\section{Dynamic Programming}
+Dynamic Programming (DP) refers to a collection of algorithms that can compute optimal policies, but only when \ul{given a perfect model of the environment} (the MDP). This means that, in this section, we will always assume that we already know:
+\begin{itemize}
+    \item The \textbf{policy} $\pi(a \mid s)$, i.e. the probability distribution over actions for every state
+    \item The \textbf{environment dynamics} $p(s', r \mid s, a)$
+\end{itemize}
+\subsection{Policy Evaluation}
+The computation of the state-value function $v_\pi$ is called \textit{policy evaluation} in DP literature. Recall that, for all $s \in \mathcal{S}$:
+
+\begin{align*}
+    v_\pi(s) &\doteq \mathbb{E}_\pi[G_t \mid S_t = s] \\
+             &= \mathbb{E}_\pi[R_{t+1}+\gamma G_{t+1} \mid S_t = s] \\
+             &= \mathbb{E}_\pi[R_{t+1}+ \gamma v_\pi(S_{t+1}) \mid S_t = s] \\
+             &= \sum_{a} \pi(a \mid s) \sum_{s',r} p(s',r \mid s,a) [r + \gamma v_\pi(s')]
+\end{align*}
+The existence and uniqueness of $v_\pi$ are guaranteed as long as $\gamma < 1$. Here, if the environment's dynamics are known, then we have a system of $|\mathcal{S}|$ equations in $| \mathcal{S} |$ unknowns (the $v_\pi(s)$). But, for our purposes, we can think of a sequence of approximate value functions $v_0, v_1, v_2, \dots$ where the initial approximation $v_0$ can be chosen arbitrarily (usually $=0$). Successive approximation is obtained by using the Bellman equation for $v_\pi$ as an update rule.
+
+\begin{algorithm}
+    \caption{Iterative policy evaluation}
+    \begin{algorithmic}[1]
+        \State $V(0) \gets 0$ for all states
+        \Repeat
+        \State $\Delta \gets 0$
+        \For{each $s \in \mathcal{S}$}
+            \State $v \gets V(s)$
+            \State $V(s) \gets \sum_a \pi(a \mid s) \sum_{s',r} p(s',r \mid s,a)[r + \gamma V(s')]$
+            \State $\Delta \gets \max(\Delta, |v - V(s)|)$
+        \EndFor
+    \Until{$\Delta < \theta$}
+    \end{algorithmic}
+    \end{algorithm}
+
+\subsection{Policy improvement}
+We calculate the value function for a certain policy to find better policies: but what if from some state $s$ we'd like to know whether to change the policy to choose an action $a \neq \pi(s)$, that is an action $a$ that does not follow the current policy? One way to answer this question is to consider selecting $a$ in $s$ and thereafter following the existing policy, $\pi$.
+
+\begin{align*}
+    q_\pi(s,a) &\doteq \mathbb{E}_\pi[R_{t+1} + \gamma v_\pi(S_{t+1}) \mid S_t=s, A_t = a] \\
+               &= \sum_{s',r} p(s',r \mid s,a) \left[r + \gamma v_\pi(s') \right]
+\end{align*}
+
+Now we ask ourselves: is this greater than or less than $v_\pi(s)$? If it is greater -- that
+is, if it is better to select $a$ once in $s$ and thereafter follow $\pi$ -- then one would expect it to be better still to select $a$ every time $s$ is encountered, and that the new policy would in fact be a better one overall. This is a special case of a general result called the \emph{policy improvement theorem}.
+
+\begin{theorem}[Policy Improvement Theorem]
+    Let $\pi$ and $\pi'$ be any pair of deterministic policies such that, for all $s \in \mathcal{S}$:
+    \[
+        q_\pi(s, \pi'(s)) \geq v_\pi(s)
+    \]
+    
+    Then the policy $\pi'$ must be as good as, or better than, $\pi$. That is, it must obtain greater or equal expected return from all states $s \in \mathcal{S}$
+    
+    \[
+        v_{\pi'}(s) \geq v_\pi(s)
+    \]
+\end{theorem}
+
+
+If we have two policies $\pi$ and $\pi'$ that are identical except in state $s$ where $\pi'(s) = a \neq \pi(s)$ we can say that for states other than $s$, $q_\pi(s, \pi'(s)) \geq v_\pi(s)$ holds because the two sides are equal. Thus if $q_\pi(s,a=\pi'(s)) > v_\pi(s)$, then the changed policy is indeed better than $\pi$.
+
+
+Now we can actually extend this concept of evaluating a change in the policy in a single state to evaluating changes in \emph{all} states, selecting at each state the action that appears best according to $q_\pi(s,a)$. In other words, to consider the new \emph{greedy policy} $\pi'$, given by:
+
+\begin{align*}
+    \pi'(s) &\doteq \argmax_a q_\pi(s,a) \\
+            &= \argmax_a \mathbb{E}[R_{t+1} + \gamma v_\pi(S_{t+1}) \mid S_t = s, A_t = a] \\
+            &= \argmax_a \sum_{s', r} p(s', r \mid s, a) \left[r+\gamma v_\pi(s')\right]
+\end{align*}
+
+\subsection{Policy iteration}
+Once a policy $\pi$ has been improved using $v_\pi$ to yield a better policy $\pi'$, we can then compute $v_{\pi'}$ and improve it again to obtain an even better $\pi''$. We can thus obtain a sequence of monotonically improving policies and value functions
+
+\[
+  \pi_0 \xrightarrow{\text{E}} v_{\pi_0} 
+        \xrightarrow{\text{I}} \pi_1 
+        \xrightarrow{\text{E}} v_{\pi_1} 
+        \xrightarrow{\text{I}} \pi_2 
+        \xrightarrow{\text{E}} \dots 
+        \xrightarrow{\text{I}} \pi_* 
+        \xrightarrow{\text{E}} v_*
+\]
+
+where $\xrightarrow{\text{E}}$ denotes a policy \emph{evaluation} and $\xrightarrow{\text{I}}$ denotes a policy \emph{improvement}.
+
+\begin{algorithm}
+    \caption{Policy iteration for estimating $\pi \approx \pi_\star$}
+    \begin{algorithmic}[1]
+        \State $V(s) \in \mathbb{R}$ and $\pi(s) \in \mathcal{A}(s), \forall \, s \in \mathcal{S}$
+        \Repeat \Comment{Policy evaluation}
+        \State $\Delta \gets 0$
+        \For{each $s \in \mathcal{S}$}
+            \State $v \gets V(s)$
+            \State $V(s) \gets \sum_{s',r} p(s',r \mid s, \pi(s))[r + \gamma V(s')]$
+            \State $\Delta \gets \max(\Delta, |v - V(s)|)$
+        \EndFor
+        \Until{$\Delta < \theta$}
+
+        \State policy-stable $\gets$ true \Comment{Policy Improvement}
+        \For{\textbf{each} $s \in \mathcal{S}$}
+            \State old\_action $\gets \pi(s)$
+            \State $ \pi(s) \gets \argmax_a \sum_{s', r} p(s', r \mid s, a) [r+\gamma V(s')]$
+            \If{old\_action $\neq \pi(s)$}
+                \State policy-stable $\gets$ false
+            \EndIf
+        \EndFor
+
+        \If{policy-stable}
+            \State \Return $V \approx v_\star$ and $\pi \approx \pi_\star$
+        \Else
+            \State Go to line 2
+        \EndIf
+    \end{algorithmic}
+\end{algorithm}
+
+Note one thing: at line 6 we do not sum over all $\sum_a \pi(a \mid s)$ because we already chose the current action to execute with the current policy $\pi(s)$.
+
+\subsubsection{Jack's Car Rental Problem}
+Jack manages two locations for a nationwide car rental company. Each day, some number of customers arrive at each location to rent cars. If Jack has a car available, he rents it out and is credited \$10 by the national company. If he is out of cars at that location, then the business is lost. Cars become available for renting the day after they are returned. To help ensure that cars are available where they are needed, Jack can move them between the two locations overnight, at a cost of \$2 per car moved. We assume that the number of cars requested and returned at each location are Poisson random variables, meaning that the probability that the number is $n$ is $\frac{\lambda^n}{n!} e^{-\lambda}$, where $\lambda$ is the expected number. Suppose $\lambda$ is 3 and 4 for rental requests at the first and second locations and 3 and 2 for returns. To simplify the problem slightly, we assume that there can be no more than 20 cars at each location (any additional cars are returned to the nationwide company, and thus disappear from the problem) and a maximum of five cars can be moved from one location to the other in one night. We take the discount rate to be $\gamma = 0.9$ and formulate this as a continuing finite MDP, where the time steps are days, the state is the number of cars at each location at the end of the day, and the actions are the net numbers of cars moved between the two locations overnight.
+
+\begin{table}[htbp]
+    \centering
+    \caption{MDP Formulation for Jack's Car Rental}
+    \label{tab:jacks_car_rental_mdp}
+    \begin{tabularx}{\textwidth}{l l X}
+    \toprule
+    \textbf{Component} & \textbf{Mathematical Definition} & \textbf{Domain / Details} \\
+    \midrule
+    \textbf{State Space ($\mathcal{S}$)} & $s = (s_1, s_2)$ & Number of cars at location 1 and location 2 at the \textbf{end of the day}. \newline $s_1, s_2 \in \{0, 1, \dots, 20\} \Rightarrow \mathbf{441 \text{ states}}$. \\
+    \addlinespace
+    \textbf{Action Space ($\mathcal{A}$)} & $a \in [-5, 5]$ & Net cars moved overnight from Location 1 to Location 2. \newline Positive $a$: move 1 $\to$ 2; Negative $a$: move 2 $\to$ 1. \\
+    \addlinespace
+    \textbf{Reward Function ($\mathcal{R}$)} & $R(s, a)$ & Expected immediate net income: \newline $\text{Revenue from rentals } (\$10/\text{car}) - \text{Moving cost } (\$2 \times |a|)$. \\
+    \addlinespace
+    \textbf{Discount Factor} & $\gamma = 0.9$ & Future rewards are discounted to ensure convergence over an infinite horizon. \\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\subsection{Value iteration}
+One drawback to policy iteration is that each of its iterations involves policy evaluation,
+which may itself be a protracted iterative computation requiring multiple sweeps through
+the state set. If policy evaluation is done iteratively, then convergence exactly to $v_\pi$
+occurs only in the limit: but do we actually need to converge to this value? Or we can stop earlier?
+
+In general the policy evaluation step of policy iteration can be truncated in several ways without losing the convergence guarantees of policy iteration. One special case is when policy evaluation is stopped after just one sweep (one update of each state). This algorithm is called \emph{value iteration}:
+
+\begin{align*}
+    v_{k+1}(s) &\doteq \max_a \mathbb{E}[R_{t+1} + \gamma v_k(S_{t+1}) \mid S_t = s, A_t = a] \\
+               &= \max_a \sum_{s', r} p(s', r \mid s, a) [r + \gamma v_k(s')]
+\end{align*}
+
+In policy iteration we calculate $V(s)$ for a fixed policy $\pi$, so we do not test all the possible actions, we can just use $\pi(s)$.
+
+
+\begin{algorithm}
+    \caption{Value iteration for estimating $\pi \approx \pi_\star$}
+    \begin{algorithmic}[1]
+        \Repeat
+            \State $\Delta \gets 0$
+            \For{\textbf{each} $s \in \mathcal{S}$}
+                \State $v \gets V(s)$
+                \State $V(s) \gets \max_a \sum_{s',r} p(s',r \mid s,a) [r + \gamma V(s')]$
+                \State $\Delta \gets \max(\Delta, |v-V(s)|)$
+            \EndFor
+        \Until{$\Delta < \theta$}
+
+        \State Output $\pi \approx \pi_\star$ such that $\pi(s) = \argmax_a \sum_{s',r}  p(s',r \mid s,a) [r + \gamma V(s')]$
+    \end{algorithmic}
+\end{algorithm}
+
+Unlike policy iteration, value iteration has no separate policy being tracked during the loop -- 
+$\pi$ is only extracted once, at the very end.
+
+\begin{table}[h]
+    \centering
+    \caption{Policy Iteration vs.\ Value Iteration}
+    \begin{tabularx}{\textwidth}{lXX}
+    \toprule
+     & \textbf{Policy Iteration} & \textbf{Value Iteration} \\
+    \midrule
+    Evaluation step & Runs to convergence (multiple sweeps) & One sweep only \\
+    Update rule & Fixed-policy backup, then separate greedy improvement & $\max_a$ taken directly inside the value update \\
+    Cost per outer iteration & Higher (full evaluation) & Lower (one sweep) \\
+    Outer iterations needed & Fewer & More \\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\subsection{Asynchronous Dynamic Programming}
+A major drawback to the DP methods is that they involve operations over the entire state set of the MDP, that is, they require sweeps of the state set. If the state set is very large, then even a single sweep can be prohibitively expensive.
+
+\emph{Asynchronous} DP algorithms are in-place iterative DP algorithms that are not organized in terms of systematic sweeps of the state set. These algorithms update the values of states in any order whatsoever, using whatever values of other states happen to be available. The values of some states may be updated several times before the values of others are updated once. There are three main types of asynchronous programming:
+
+\begin{enumerate}
+    \item \textbf{In-place:} instead of keeping two arrays (one for the old value $V_k$ and one for new values $V_{k+1}$), we use a single array $V$.
+    \item \textbf{Prioritized sweeping:} tracks which states experienced a large change in value ($\Delta V$) and prioritizes updating the predecessor states that lead into those changed states, focusing compute strictly where it makes the biggest difference
+    \item \textbf{Real-time:} instead of updating random states, you run the DP update on states the agent actually encounters while interacting with the environment.
+\end{enumerate}

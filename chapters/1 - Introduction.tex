@@ -1,0 +1,183 @@
+\section{Introduction}
+\subsection{What's Reinforcement Learning?}
+
+To us \textbf{intelligence} is the fact to be able to make decisions and to achieve goals. In general people and animals learn by interacting actively with the environment: this type of learning is:
+\begin{itemize}
+    \item \textbf{Active}
+    \item \textbf{Sequential:} future interactions depend on earlier ones
+    \item \textbf{Goal-directed}
+\end{itemize}
+
+
+The goal is to optimize the sum of rewards, through repeated interactions with the environment around us.
+
+\begin{definition}[Reward]
+    A \textbf{reward} is a scalar feedback signal, which tells us information about the immediate performance at time step $t$
+\end{definition}
+
+\begin{definition}[Reward Hypothesis]
+    Any goal can be formalized as the outcome of maximizing a cumulative reward
+\end{definition}
+
+\subsection{Agent and Environment}
+An agent is fully described by its state at a certain time $t$, which is defined from the observation at time $t$.  The agent state $S$ is a function of the \textbf{history}, e.g. the full sequence of $observation \to actions \to rewards$.
+
+\[
+    H_t = O_0, A_0, R_0, O_1, \dots, O_{t-1}, A_{t-1}, R_t, O_t
+\]
+
+Formally the state $S_t$ at a certain time-step $t$ is a function of the history $S_t = f(H_t)$
+
+The agent state at timestep $t+1$ can be described by:
+\[
+    S_{t+1} = u(S_t, A_t, R_{t+1}, O_{t+1})
+\]
+where $u$ is called the \textbf{state update function}. But one may ask: why bother with $u$ at all? In general the agent doesn't get to see the true environment state, but only an observation $O_t$. The update function $u$ is the agent's own bookkeeping: a way of compressing everything it has seen so far into a summary that is (ideally) Markovian, even when the raw observations aren't. When $S_t = O_t$ (full observability), $u$ is trivial ($u(S_t, A_t, R_{t+1}, O_{t+1}) = O_{t+1}$); when it isn't, $u$ is doing real work.
+
+At each step $t$ the agent:
+\begin{itemize}
+    \item Receives observation $O_t$ and reward $R_t$
+    \item Executes action $A_t$
+\end{itemize}
+
+\begin{center}
+    \begin{tikzpicture}[
+        agent_box/.style={
+            draw, 
+            rectangle, 
+            minimum width=2cm, 
+            minimum height=1.5cm, 
+            thick
+        },
+        arrow_style/.style={
+            ->, 
+            >=Stealth, 
+            thick
+        }
+    ]
+        \node[agent_box] (agent) {Agent};
+        \coordinate[left=2cm of agent.west, yshift=0.35cm] (in_O);    
+        \coordinate[left=2cm of agent.west, yshift=-0.35cm] (in_R);
+        \coordinate[right=2cm of agent.east] (out_A);
+        \draw[arrow_style] (in_O) -- node[above] {$O_t$} (agent.west |- in_O);
+        \draw[arrow_style] (in_R) -- node[above] {$R_t$} (agent.west |- in_R);
+        \draw[arrow_style] (agent.east) -- node[above] {$A_t$} (out_A);
+    \end{tikzpicture}
+\end{center}
+
+The environment state $S_t^e$ is the environment's internal "private" representation, which may be very complicated, especially for real world environments. This is usually invisible to the agent. The \textbf{agent state} $S_t^a$, instead, is the agent's internal representation, i.e. whatever information the agent uses to pick the next action.
+The environment:
+\begin{itemize}
+    \item Receives the action $A_t$
+    \item Emits observation $O_{t+1}$ and reward $R_{t+1}$
+\end{itemize}
+
+\noindent
+\textbf{Note:} when the agent sees the full environment state we talk about \textit{full observability} ($S_t = O_t$)
+
+\noindent
+The objective of the agent is to \textbf{maximize cumulative reward} which, in the simplest case, is just the sum of the rewards
+\[
+    G_t = R_{t+1} + R_{t+2} + R_{t+3} + \dots + R_{T}
+\]
+
+where $T$ is the final time step and $G_t$ is called \textbf{return}. Note that it refers to the \textit{future} and not to the past!
+
+\subsubsection{Values}
+\begin{tcolorbox}[colframe=black, coltitle=white, title=Note, fonttitle=\bfseries]Since RL environments are often \textit{stochastic}, we can't predict exactly what will happen, that's why we use the \textbf{expected value} $\mathbb{E}$, which represents the average outcome over many possible futures.
+\end{tcolorbox}
+
+We call the \textbf{expected cumulative reward} from a state $a$, the value:
+\begin{align*}
+    v(s) &= \mathbb{E}[G_t \mid S_t = s] \\
+         &= \mathbb{E}[R_{t+1} + R_{t+2} + \dots \mid S_t=s]
+\end{align*}
+
+This can be thought as the \textit{long-term potential} of being in a specific state. While a reward tells you how good your last action was, the value tells you how good your long-term future looks from where you are standing. The goal is to maximize this value by picking the most "useful" states and actions. In general returns and values can be defined recursively:
+\begin{align*}
+    G_t &= R_{t+1} + G_{t+1} \\
+    v(s) &= \mathbb{E}[R_{t+1} + v(S_{t+1}) \mid S_t = s]
+\end{align*}
+
+\noindent
+Sometimes it might be better to sacrifice immediate reward to gain more long-term reward
+\begin{itemize}
+    \item Refueling a helicopter might prevent a crash in several hours
+    \item Learning a new skill can be costly and time-consuming at first
+\end{itemize}
+
+It is also possible to condition the value on the actions taken
+\begin{align*}
+    q(s,a) &= \mathbb{E}[G_t \mid S_t=s, A_t = a] \\
+            &= \mathbb{E}[R_{t+1}+ R_{t+2} + \dots \mid S_t = s, A_t = a]
+\end{align*}
+
+\subsection{Policy}
+A \textbf{policy} $\pi(\cdot)$ defines the agent's behaviour and can be roughly described as a mapping from the agent state to action $a \sim \pi(s)$
+
+There are two kinds of policies:
+\begin{itemize}
+    \item \textbf{Deterministic} $A=\pi(S)$, we always take the same action in a given state
+    \item \textbf{Stochastic} 
+    \begin{align*}
+        &\pi : S \times A \to [0,1], \qquad \text{with } \sum_{a \in \mathcal{A}} \pi(s,a) = 1 \ \ \forall s \in \mathcal{S} \\
+        &\pi(a \mid s) = p(A_t=a \mid S_t = s)
+    \end{align*}
+\end{itemize}
+
+We will write this equivalently as $\pi(a \mid s)$, i.e. $\pi(s,a) = \pi(a \mid s)$, and use the conditional notation from here on.
+
+\subsubsection{Value function}
+The value functions provide information about the objective. They help an agent
+understand how good the states and available actions are in terms of the expected future
+return. The actual value function is expressed as
+\begin{align*}
+    v_\pi(s) &= \mathbb{E}_\pi[G_t \, | \, S_t=s] \\
+             &= \mathbb{E}_\pi[R_{t+1}+\gamma R_{t+2} + \gamma^2 R_{t+3} +\dots \, | \, S_t=s]
+\end{align*}
+Here we introduced the so-called \textbf{discount factor} $\gamma \in [0,1]$. Even the discounted return has a recursive form:
+\begin{align*}
+    G_t &= R_{t+1}+\gamma R_{t+2} + \gamma^2 R_{t+3} + \dots \\
+                  &= R_{t+1}+\gamma(\underbrace{R_{t+2} + \gamma R_{t+3} +\dots}_{G_{t+1}} ) \\
+                  &= R_{t+1} + \gamma G_{t+1}
+\end{align*}
+Therefore, the value has a recursive definition as well:
+\begin{align*}
+    v_\pi(s) &= \mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} \mid S_t=s] \\
+             &= \mathbb{E}_\pi[R_{t+1} + \gamma v_\pi(S_{t+1}) \mid S_t=s]
+\end{align*}
+This is known as the \textbf{Bellman equation} and a similar equation holds for the optimal value $v_\star(s)$ and $q_\star(s,a)$:
+\begin{align*}
+    v_\star(s) &= \max_{a} \mathbb{E}[R_{t+1}+\gamma v_\star(S_{t+1}) \mid S_t = s, A_t = a]\\
+    q_\star(s,a) &= \mathbb{E}\!\left[R_{t+1} + \gamma \max_{a'} q_\star(S_{t+1}, a') \mid S_t = s, A_t = a\right]
+\end{align*}
+
+Note that this equation \textbf{does not} depend on a policy.
+
+
+\subsection{Markov Decision Processes}
+
+\begin{definition}[Markov Process]
+    A decision process is called a \textbf{markov process} if
+    \[
+        p(s', r \mid S_t = s, A_t = a, H_{t-1}) \doteq p(s', r \mid S_t = s, A_t = a)
+    \]
+    where
+    \begin{itemize}
+        \item $s'$ is the next state
+        \item r is the reward obtained in s
+        \item $p: \mathcal{S} \times \mathcal{R} \times \mathcal{S} \times \mathcal{A} \to [0, 1]$ defines the dynamics of the MDP
+    \end{itemize}
+\end{definition}
+
+Essentially this means that the state contains everything we need to know from the history, so that adding more history does not help.
+
+\subsection{Model}\label{sec:model}
+A \textbf{model} predicts what the environment will do next, e.g. $\mathcal{P}$ that predicts the next state:
+\[
+    \mathcal{P}(s,a,s') \approx p(S_{t+1}=s' \mid S_t = s, A_t = a)
+\]
+or $\mathcal{R}$ that predicts the next reward:
+\[
+    \mathcal{R}(s,a) \approx \mathbb{E}[R_{t+1} \mid S_t=s, A_t=a]
+\]

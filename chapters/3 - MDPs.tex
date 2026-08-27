@@ -1,0 +1,53 @@
+\section{Markov Decision Processes}
+MDPs are a classical formalization of sequential decision-making, where actions influence not just immediate rewards, but also subsequent situations, or states, and through those future rewards. Whereas in bandit problems we estimated the value $q_\star(a)$ of each action $a$, in MDPs we estimate the value $q_\star(s,a)$ of each action $a$ in each state $s$. In fact, the $k$-armed bandit problem is just an MDP with $\lvert\mathcal{S}\rvert = 1$: there is
+only one state to be in, so there is nothing to transition to, and $q_\star(s,a)$ collapses back down to $q_\star(a)$.
+
+More intuitively: if you're in state $s$ and take action $a$, this single joint distribution tells you everything about what happens next; both which state you land in and what reward you get. This joint form is more general than treating $P$ and $R$ separately in \ref{sec:model}: that separation is really a special case that assumes reward and next-state are decoupled given $(s,a)$.
+
+In MDPs, the random variables $R_t$ and $S_t$ have well-defined discrete probability distributions dependent only on the preceding state and action. That is, for particular values of these random variables $s' \in \mathcal{S}$ and $r \in \mathcal{R}$ there is a probability of those values occurring at time $t$, given particular values of the preceding state and action:
+
+\begin{align*}
+        p(s', r | s, a) \doteq \mathbb{P}(S_{t+1}=s', R_{t+1} = r \mid S_{t} = s, A_{t} = a), \qquad \forall s', s \in \mathcal{S}, r \in \mathcal{R}, a \in \mathcal{A}
+\end{align*}
+
+In general, when we have \textit{partial observability}, the observations are \textbf{not} markovian, so using them as states would not result in a MDP. When we're in this situation we call the problem a \textbf{partially observable MDP}, in which the environment's state can still be Markovian, but the agent doesn't know it.
+
+\subsection{Value functions}
+The value function $v_\pi(s) = \mathbb{E}_\pi[G_t \mid S_t=s]$, gives us a measure of how "good" a certain state is, while the state-action value function $q_\pi(s,a) = \mathbb{E}_\pi[G_t \mid S_t=s, A_t=a]$ gives us a measure of how good or bad a certain state-action pair is. These two functions are closely connected:
+
+\[
+    v_\pi(s) = \sum_{a} \pi(a \lvert s) \cdot q_\pi(s,a) = \mathbb{E}_\pi[q_\pi(S_t,A_t) \mid S_t = s]
+\]
+Essentially the $v_\pi(s)$ function is the expectation over the $q$-values for all the actions $a$ available in a particular state $s$ under the policy $\pi$
+
+\begin{definition}
+    The \textbf{optimal state-value function} $v^\star(s)$ is the maximum value function over all possible policies
+    \[
+        v^\star(s) = \max_\pi v_\pi(s)
+    \]
+\end{definition}
+
+\begin{definition}
+    The \textbf{optimal action-value function} $q^\star(s,a)$ is the maximum action value function over all possible policies
+    \[
+        q^\star(s,a) = \max_\pi q_\pi(s,a)
+    \]
+\end{definition}
+
+\begin{theorem}[Optimal Policies]
+    For any Markov Decision Process:
+    \begin{itemize}
+        \item There exist an optimal policy $\pi^\star$ that is better than or equal to all other policies, $\pi^\star \geq \pi \iff v_\pi(s) \geq v_{\pi^\star}(s) \quad \forall \, s \in \mathcal{S}$
+        \item All optimal policies achieve the optimal value function $v_{\pi^\star}(s) = v^\star(s)$
+        \item All optimal policies achieve the optimal action-value function $q_{\pi^\star}(s,a) = q^\star(s,a)$
+    \end{itemize}
+\end{theorem}
+By maximizing over $q^\star(s,a)$ we can achieve an optimal policy:
+
+\begin{equation}
+    \pi^\star(s,a) =
+    \begin{cases}
+        1 \quad \text{if } a = \underset{a \in \mathcal{A}}{\mathrm{argmax}} \ q^\star(s,a) \\
+        0 \quad \text{otherwise}
+    \end{cases} 
+\end{equation}
